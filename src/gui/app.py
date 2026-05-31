@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+import time
 from src.algorithms.facade import AlgorithmFacade
 from src.gui.commands import RunAlgorithmCommand
 from src.gui.memento import Caretaker
@@ -15,11 +16,9 @@ class AlgorithmVisualizerApp:
         self._setup_ui()
 
     def _setup_ui(self):
-        # Панель керування
         control_frame = ttk.Frame(self.root, padding=10)
         control_frame.pack(side=tk.TOP, fill=tk.X)
 
-        # Вибір алгоритму
         ttk.Label(control_frame, text="Алгоритм:").pack(side=tk.LEFT, padx=5)
         self.algo_var = tk.StringVar()
         self.algo_cb = ttk.Combobox(control_frame, textvariable=self.algo_var, state="readonly")
@@ -27,7 +26,6 @@ class AlgorithmVisualizerApp:
         if self.algo_cb['values']: self.algo_cb.current(0)
         self.algo_cb.pack(side=tk.LEFT, padx=5)
 
-        # Вибір типу даних
         ttk.Label(control_frame, text="Дані:").pack(side=tk.LEFT, padx=5)
         self.data_var = tk.StringVar()
         self.data_cb = ttk.Combobox(control_frame, textvariable=self.data_var, state="readonly")
@@ -35,30 +33,25 @@ class AlgorithmVisualizerApp:
         if self.data_cb['values']: self.data_cb.current(0)
         self.data_cb.pack(side=tk.LEFT, padx=5)
 
-        # Розмір масиву (звертаємось до Singleton налаштувань)
         ttk.Label(control_frame, text="Кількість:").pack(side=tk.LEFT, padx=5)
         self.size_var = tk.IntVar(value=self.facade.settings.array_size)
         self.size_spin = ttk.Spinbox(control_frame, from_=5, to=500, textvariable=self.size_var, width=5)
         self.size_spin.pack(side=tk.LEFT, padx=5)
 
-        # Кнопки (Command & Memento)
         self.run_btn = ttk.Button(control_frame, text="Відсортувати", command=self._on_run)
         self.run_btn.pack(side=tk.LEFT, padx=10)
 
         self.undo_btn = ttk.Button(control_frame, text="Відмінити (Undo)", command=self._on_undo, state=tk.DISABLED)
         self.undo_btn.pack(side=tk.LEFT, padx=5)
 
-        # Полотно для візуалізації
         self.canvas = tk.Canvas(self.root, bg="white")
         self.canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
     def _draw_array(self, data, color="blue"):
-        """Допоміжна функція для малювання масиву у вигляді стовпчиків."""
         self.canvas.delete("all")
         if not data: return
 
-        # Отримуємо актуальні розміри полотна
-        self.canvas.update()
+        self.canvas.update_idletasks()
         c_width = self.canvas.winfo_width() or 800
         c_height = self.canvas.winfo_height() or 400
 
@@ -73,34 +66,38 @@ class AlgorithmVisualizerApp:
             self.canvas.create_rectangle(x0, y0, x1, y1, fill=color, outline="black")
 
     def _on_run(self):
-        # Оновлюємо налаштування Singleton
         try:
             self.facade.settings.update_size(int(self.size_var.get()))
         except ValueError:
             messagebox.showerror("Помилка", "Введіть ціле число!")
             return
 
-        # Патерн Command у дії: інкапсулюємо запит
+        self.run_btn.config(state=tk.DISABLED)
+
+        def tick(current_data):
+            self._draw_array(current_data, color="orange")
+            self.root.update()
+            time.sleep(self.facade.settings.animation_speed / 50)
+
         cmd = RunAlgorithmCommand(
             facade=self.facade,
             algo_name=self.algo_var.get(),
             data_type=self.data_var.get(),
-            ui_callback=self._handle_result
+            ui_callback=self._handle_result,
+            tick_callback=tick
         )
         cmd.execute()
 
     def _handle_result(self, result: dict):
-        # Патерн Memento: зберігаємо невідсортований масив у бекап
+        self.run_btn.config(state=tk.NORMAL)
         self.caretaker.backup(result["original_data"])
         self.undo_btn.config(state=tk.NORMAL)
 
-        # Малюємо відсортований масив
         self._draw_array(result["sorted_data"], color="green")
 
     def _on_undo(self):
-        # Патерн Memento: дістаємо попередній стан
         previous_state = self.caretaker.undo()
         if previous_state is not None:
-            self._draw_array(previous_state, color="red")  # Червоний колір для невідсортованого стану
+            self._draw_array(previous_state, color="red")
             if not self.caretaker._history:
                 self.undo_btn.config(state=tk.DISABLED)
