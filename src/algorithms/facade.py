@@ -1,3 +1,4 @@
+import time
 from src.algorithms.sorting import BubbleSort, QuickSort, BuiltInSortAdapter
 from src.algorithms.factory import DataFactory
 from src.algorithms.config import SettingsManager
@@ -27,12 +28,16 @@ class AlgorithmFacade:
         original_data = DataFactory.create_data(data_type, size)
         strategy = self._algorithms[algo_name]
 
+        # Додаємо заміри часу для експорту
+        start_time = time.perf_counter()
         sorted_data = strategy.execute(original_data, tick_callback)
+        exec_time = time.perf_counter() - start_time
 
         return {
             "algorithm": algo_name,
             "data_type": data_type,
             "size": size,
             "original_data": original_data,
-            "sorted_data": sorted_data
+            "sorted_data": sorted_data,
+            "execution_time": exec_time
         }
