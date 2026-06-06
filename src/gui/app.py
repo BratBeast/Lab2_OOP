@@ -51,12 +51,11 @@ class AlgorithmVisualizerApp:
         self.canvas.delete("all")
         if not data: return
 
-        self.canvas.update_idletasks()
         c_width = self.canvas.winfo_width() or 800
         c_height = self.canvas.winfo_height() or 400
 
         bar_width = c_width / len(data)
-        max_val = max(data)
+        max_val = max(data) if max(data) > 0 else 1
 
         for i, val in enumerate(data):
             x0 = i * bar_width
@@ -64,6 +63,8 @@ class AlgorithmVisualizerApp:
             x1 = (i + 1) * bar_width
             y1 = c_height
             self.canvas.create_rectangle(x0, y0, x1, y1, fill=color, outline="black")
+
+        self.canvas.update_idletasks()
 
     def _on_run(self):
         try:
@@ -74,10 +75,11 @@ class AlgorithmVisualizerApp:
 
         self.run_btn.config(state=tk.DISABLED)
 
+        # У методі _on_run
         def tick(current_data):
-            self._draw_array(current_data, color="orange")
+            time.sleep(self.facade.settings.animation_speed * 0.1)
+            self._draw_array(current_data)
             self.root.update()
-            time.sleep(self.facade.settings.animation_speed / 50)
 
         cmd = RunAlgorithmCommand(
             facade=self.facade,
